@@ -1,0 +1,2 @@
+select c.relname as table_name,c.relrowsecurity as rls_enabled from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind='r' and c.relname in ('store_settings','products','product_variants','orders','order_items','subscribers','campaigns','campaign_deliveries','signup_limits') order by c.relname;
+select id,public,file_size_limit,allowed_mime_types from storage.buckets where id='store-images';
