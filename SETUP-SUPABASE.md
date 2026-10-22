@@ -65,41 +65,34 @@ The promotion/newsletter code uses **Resend** separately:
 
 Until the sending domain is available, complete the database first and keep public signup/promotion delivery pending. No promotional campaign is sent automatically by setup.
 
-## 6. Upload the project to GitHub and connect server hosting
+## 6. GitHub → Cloudflare Workers (browser only)
 
-1. Extract `Reyaa-Boutique-GitHub.zip`.
-2. Create a **private** GitHub repository named `reyaa-boutique`.
-3. Upload the contents INSIDE the extracted folder, so `package.json`, `app/`, `db/` and `README.md` sit at the repository root.
-4. Include `.gitignore` and `.env.example`. If your file explorer hides them, enable hidden-file display. Never upload a real `.env.local` file.
-5. Connect this repository to a host that runs Next.js server routes, or continue using a compatible existing server deployment. GitHub Pages only serves static files and cannot run this project's payment callbacks, authenticated APIs or admin operations.
-6. Use Node.js 22.13+ and the package manager version in `package.json`.
-7. Install: `corepack pnpm install --frozen-lockfile`.
-8. Build: `corepack pnpm build`.
-9. For a Node host, start: `corepack pnpm start` (set the host's `PORT` as required).
-10. In your SERVER HOST environment settings, add the three Supabase values from step 3 and `PUBLIC_SITE_URL=https://YOUR-RUNNING-HOST`.
-11. Set `BILLPLZ_MODE=sandbox`. Leave Billplz secrets empty until the client registers.
-12. Deploy/redeploy after changing environment values.
+No local Node.js installation is needed. Cloudflare installs dependencies and builds remotely.
 
-Uploading to GitHub does not activate the database connection by itself. GitHub repository Secrets also do not automatically become runtime variables on an unrelated hosting provider.
+1. Extract the updated ZIP and upload its CONTENTS to existing `sarishi10/Reyaa-Boutique`, replacing matching files. Keep `package.json`, `pnpm-lock.yaml`, `vite.config.ts`, `wrangler.jsonc`, app/ and public/ at repository root. Include hidden `.gitignore` and `.env.example`; never upload real credentials.
+2. Cloudflare Workers & Pages → Create application → Connect GitHub → select that repository and main branch.
+3. Project name: `reyaa-boutique`. Build command: `pnpm run build`. Deploy command: `npx wrangler deploy`. Leave root directory blank. Disable preview builds initially. Leave Cloudflare Access protection off for public customers.
+4. Under advanced build settings set `NODE_VERSION=22.16.0`. Keep dependency installation enabled (pnpm is selected from the lockfile/packageManager).
+5. Deploy. The Vite Cloudflare plugin generates the Worker and asset configuration; Wrangler uses its generated deployment config automatically.
+6. Copy the resulting HTTPS workers.dev address. Under this Worker's Settings → Variables and Secrets add runtime values: `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`, `PUBLIC_SITE_URL` (the exact HTTPS address), `ADMIN_EMAIL=nisha.nairofficial0728@gmail.com`, `BILLPLZ_MODE=sandbox`. Store the Supabase secret key as an encrypted Secret. Enter credentials directly in Cloudflare; never GitHub or chat.
+7. Deploy the runtime settings/redeploy as prompted. Do not place Supabase or Billplz secrets in build variables. Runtime process.env is provided by Workers nodejs_compat.
+8. Add `/account` and `/admin/reset` on the running HTTPS origin to Supabase Auth redirect URLs; set Site URL to that origin.
 
-For local development only: copy `.env.example` to `.env.local`, enter your values, install dependencies and run `corepack pnpm dev`. The website opens at `http://localhost:3000`. Production must use HTTPS. Local account login can be tested; emailed links use the configured HTTPS `PUBLIC_SITE_URL` and payment callbacks require a publicly reachable deployment.
+For local development only, use ignored `.dev.vars` for Worker runtime secrets, `pnpm install --frozen-lockfile`, then `pnpm dev`. The hosting workflow above does not require this.
 
-## 7. Create Nisha's administrator login
+## 7. Create Nisha's administrator login (browser only)
 
-The approved administrator email is **nisha.nairofficial0728@gmail.com**. A database project and connected email sender are required before the account can be created or reset emails can arrive. No working password is stored in this ZIP.
+The approved email is **nisha.nairofficial0728@gmail.com**. No working password is included.
 
-1. On your own computer, copy `.env.example` to `.env.local` and enter the new Reyaa project's URL, secret key, publishable key and HTTPS `PUBLIC_SITE_URL`. Keep `ADMIN_EMAIL=nisha.nairofficial0728@gmail.com`.
-2. Add the same `ADMIN_EMAIL` to your server host environment settings and redeploy.
-3. In Supabase Auth **URL Configuration → Redirect URLs**, add both `https://YOUR-HOST/account` and `https://YOUR-HOST/admin/reset`. The final domain needs the same entries when it is ready.
-4. With dependencies installed, run `corepack pnpm admin:setup` in your local project terminal. Run this only locally, never in GitHub Actions or a shared build log.
-5. The command creates the Auth user, gives it the server-controlled admin role, marks its password as temporary and prints a random temporary password once. Save/deliver it privately. Existing accounts keep their current password; an existing administrator is not recreated.
-6. Open `https://YOUR-HOST/admin`. Nisha can enter her temporary login; the portal will direct her to reset it. She can also click **Forgot password?** immediately and enter her administrator email.
-7. Click **Email reset link**. Open the newest email and its link, choose a password of at least 12 characters, confirm it, and save.
-8. The verified recovery flow clears the temporary-password requirement. Nisha then signs in at `/admin` with her new password. Admin management remains blocked until this step completes.
+1. In Supabase Authentication → Users → Add user → Create new user, use this exact email and a unique temporary password of at least 12 characters. Set the user as email confirmed. Keep the password private.
+2. In Supabase SQL Editor run `db/ADMIN-ROLE-LATER.sql` once. This grants the server-controlled admin role and requires a password reset; customer signup cannot grant this role.
+3. Ensure the runtime ADMIN_EMAIL and Auth redirects from section 6 are configured, and complete Auth email/SMTP setup from section 5.
+4. Open the site's `/admin` page. Temporary login directs Nisha to email reset; alternatively use Forgot password and her approved email.
+5. Open the latest recovery email, choose a new password of at least 12 characters, and sign in again. Management is blocked until verified email recovery completes.
 
-Use Supabase's default password recovery email template initially, preserving its `{{ .ConfirmationURL }}` link so that `redirect_to=/admin/reset` is honored. The reset page consumes the token fragment, removes it from the browser address bar, verifies admin identity and a recent signed `recovery` authentication claim, and uses a short-lived HttpOnly reset cookie. Ordinary password-login tokens cannot bypass the email reset requirement. Configure SMTP before testing delivery; this feature has not sent an email yet.
+Keep Supabase's default recovery template with `{{ .ConfirmationURL }}`. The separate `/admin/reset` route verifies the recovery session and administrator role. Customer portal remains `/account`. The Supabase dashboard login and store administrator login are separate accounts.
 
-`db/ADMIN-ROLE-LATER.sql` is an alternative for an already-created, verified Auth user and is now filled with Nisha's email. Use either the setup command or this SQL as appropriate; do not use customer-editable metadata to grant admin rights. The Supabase dashboard account, database password and boutique admin account are separate things.
+The optional `scripts/setup-admin.mjs` command is retained for developers; it is unnecessary for the browser-only workflow.
 
 ## 8. Check the connection
 
