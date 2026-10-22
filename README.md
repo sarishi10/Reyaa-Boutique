@@ -43,3 +43,4 @@ Promotion emails require double opt-in. Drafts are previewed, explicitly queued 
 ## Validation
 
 The original store has passed desktop/mobile layout checks, typechecking, security route checks, Billplz signature/tampering checks and isolated executable PostgreSQL tests for prices, RLS, stock reservations and idempotency. This portable export also receives its own Cloudflare production build and Wrangler packaging checks. Real Supabase, merchant sandbox, SMTP and production acceptance testing remain required.
+
